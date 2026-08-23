@@ -5,6 +5,10 @@ declare const __EDGEEVER_BUILD_ID__: string;
 declare const __EDGEEVER_BUILD_LABEL__: string;
 declare const __EDGEEVER_APP_VERSION__: string;
 declare const __EDGEEVER_RELEASED_AT__: string;
+declare const __EDGEEVER_RELEASE_SUMMARY__: {
+  version: string;
+  changes: Record<string, string[]>;
+};
 declare const __EDGEEVER_DEPLOYMENT_TRIGGER__: string;
 declare const __EDGEEVER_DEPLOYMENT_METHOD__: string;
 declare const __EDGEEVER_DEVELOPMENT_PROFILE__: "" | "local" | "demo";
@@ -19,7 +23,12 @@ interface EdgeEverDesktopBridge {
   copyHtml(html: string, plainText: string): Promise<boolean>;
   setSessionToken(value: string): Promise<{ stored: boolean }>;
   clearSessionToken(): Promise<{ stored: false }>;
-  clearLocalData(): Promise<{ scheduled: true }>;
+  clearLocalData(): Promise<
+    { scheduled: true }
+    | { scheduled: false; errorCode: DesktopLocalDataResetErrorCode }
+  >;
+  recordRendererError(details: DesktopRendererErrorDetails): Promise<{ recorded: true }>;
+  openRendererIssue(details: DesktopRendererErrorDetails): Promise<{ opened: true }>;
   sidecarStatus(): Promise<{ available: boolean; path: string; scope: string }>;
   setAccountScope(accountId: string | null): Promise<{ ready: true; scope: string }>;
   updateStatus(): Promise<{ state: "idle" | "available" | "downloaded" }>;
@@ -33,6 +42,21 @@ interface EdgeEverDesktopBridge {
   removeStagedResource(id: string): Promise<void>;
   onCommand(callback: (command: string) => void): () => void;
   onImportMarkdown(callback: (payload: { name: string; content: string }) => void): () => void;
+}
+
+type DesktopLocalDataResetErrorCode =
+  | "unsafe-data-directory"
+  | "application-bundle-not-found"
+  | "helper-start-failed"
+  | "unexpected";
+
+interface DesktopRendererErrorDetails {
+  kind: string;
+  message?: string;
+  stack?: string;
+  componentStack?: string;
+  reason?: string;
+  exitCode?: number;
 }
 
 interface Window {

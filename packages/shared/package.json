@@ -11,7 +11,8 @@
     "./memo-template-seeds": "./src/memo-template-seeds.ts",
     "./mathematics": "./src/mathematics.ts",
     "./mobile-editor": "./src/mobile-editor.ts",
-    "./mobile-ui": "./src/mobile-ui.ts"
+    "./mobile-ui": "./src/mobile-ui.ts",
+    "./note-image-card": "./src/note-image-card.ts"
   },
   "types": "./src/index.ts",
   "dependencies": {
@@ -21,6 +22,7 @@
     "@tiptap/extension-mathematics": "3.27.1",
     "@tiptap/extension-table": "3.27.1",
     "@tiptap/markdown": "3.27.1",
+    "@tiptap/pm": "3.27.1",
     "@tiptap/starter-kit": "3.27.1",
     "katex": "0.16.22"
   }

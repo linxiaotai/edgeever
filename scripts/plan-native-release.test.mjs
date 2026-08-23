@@ -19,6 +19,7 @@ describe("native release planning", () => {
       "packages/shared/src/index.ts",
       "bun.lock",
       "scripts/build-android-local.sh",
+      "scripts/configure-android-package-permissions.mjs",
       "scripts/verify-android-apk-signature.mjs",
       ".github/workflows/mobile-build.yml",
       ".github/workflows/store-delivery.yml",
@@ -27,6 +28,30 @@ describe("native release planning", () => {
     expect(planNativeRelease("mobile", changedFiles)).toEqual({
       rebuild: true,
       relevantChanges: changedFiles,
+    });
+  });
+
+  test("keeps an expo-sharing dependency patch scoped to Android", () => {
+    const changedFiles = [
+      "package.json",
+      "bun.lock",
+      "apps/mobile/app.json",
+      "patches/expo-sharing@57.0.8.patch",
+      "scripts/plan-native-release.mjs",
+      "scripts/plan-native-release.test.mjs",
+    ];
+
+    expect(planNativeRelease("mobile", changedFiles)).toEqual({
+      rebuild: true,
+      relevantChanges: [
+        "bun.lock",
+        "apps/mobile/app.json",
+        "patches/expo-sharing@57.0.8.patch",
+      ],
+    });
+    expect(planNativeRelease("desktop", changedFiles)).toEqual({
+      rebuild: false,
+      relevantChanges: [],
     });
   });
 
@@ -58,7 +83,7 @@ describe("native release planning", () => {
 
   test("does not rebuild desktop for release notes or a root version bump alone", () => {
     expect(
-      planNativeRelease("desktop", ["package.json", "AGENTS.md"]),
+      planNativeRelease("desktop", ["package.json", "release-summary.json", "AGENTS.md"]),
     ).toEqual({ rebuild: false, relevantChanges: [] });
   });
 });

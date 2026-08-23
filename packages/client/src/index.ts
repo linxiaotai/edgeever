@@ -22,9 +22,6 @@ import type {
   PublicMemoShare,
   TagSummary,
   TiptapDoc,
-  AiAction,
-  AiTargetLanguage,
-  AiTone,
   AiSettings,
   AiDiscoveredModel,
   AiProvider,
@@ -32,6 +29,10 @@ import type {
   AiPromptTemplateCreateInput,
   AiPromptTemplateUpdateInput,
   AiStreamEvent,
+  AiGenerateInput,
+  AiTagSuggestionPromptUpdateInput,
+  AiTagSuggestionsRequestInput,
+  AiTagSuggestionsResponse,
 } from "@edgeever/shared";
 
 export type EdgeEverClientOptions = {
@@ -244,7 +245,10 @@ export const createEdgeEverClient = (options: EdgeEverClientOptions = {}) => {
         body: JSON.stringify(payload),
       }),
 
-    getAiSettings: () => request<AiSettings>("/api/v1/ai/settings"),
+    getAiSettings: (locale?: string) => {
+      const search = locale ? `?locale=${encodeURIComponent(locale)}` : "";
+      return request<AiSettings>(`/api/v1/ai/settings${search}`);
+    },
 
     createAiProvider: (payload: AiProviderCreatePayload) =>
       request<AiSettings>("/api/v1/ai/providers", {
@@ -292,6 +296,12 @@ export const createEdgeEverClient = (options: EdgeEverClientOptions = {}) => {
         body: JSON.stringify({ modelConfigId }),
       }),
 
+    updateAiTagSuggestionPrompt: (payload: AiTagSuggestionPromptUpdateInput, locale?: string) =>
+      request<AiSettings>(`/api/v1/ai/tag-suggestion-prompt${locale ? `?locale=${encodeURIComponent(locale)}` : ""}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }),
+
     listAiPrompts: (locale?: string) => {
       const search = locale ? `?locale=${encodeURIComponent(locale)}` : "";
       return request<{ prompts: AiPromptTemplate[] }>(`/api/v1/ai/prompts${search}`);
@@ -325,18 +335,15 @@ export const createEdgeEverClient = (options: EdgeEverClientOptions = {}) => {
       });
     },
 
+    suggestAiTags: (payload: AiTagSuggestionsRequestInput, signal?: AbortSignal) =>
+      request<AiTagSuggestionsResponse>("/api/v1/ai/tag-suggestions", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        signal,
+      }),
+
     streamAiGeneration: async (
-      payload: {
-        action: AiAction;
-        promptId?: string;
-        locale?: string;
-        title: string;
-        contentMarkdown: string;
-        stream?: boolean;
-        targetLanguage?: AiTargetLanguage;
-        tone?: AiTone;
-        instruction?: string;
-      },
+      payload: AiGenerateInput,
       streamOptions: { signal?: AbortSignal; onEvent: (event: AiStreamEvent) => void },
     ) => {
       const headers = new Headers({ "Content-Type": "application/json" });
@@ -452,6 +459,7 @@ export const createEdgeEverClient = (options: EdgeEverClientOptions = {}) => {
       notebookId?: string | null;
       includeDescendants?: boolean;
       q?: string;
+      tag?: string;
       trash?: boolean;
       sort?: MemoSortMode;
       filter?: MemoFilterMode;
@@ -470,6 +478,10 @@ export const createEdgeEverClient = (options: EdgeEverClientOptions = {}) => {
 
       if (params.q?.trim()) {
         search.set("q", params.q.trim());
+      }
+
+      if (params.tag?.trim()) {
+        search.set("tag", params.tag.trim());
       }
 
       if (params.trash) {

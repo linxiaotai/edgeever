@@ -15,7 +15,6 @@ import * as m from "motion/react-m";
 import {
   X,
   ChevronLeft,
-  ChevronRight,
   ChevronDown,
   Search,
   MoreHorizontal,
@@ -41,6 +40,7 @@ import {
   CheckCircle2,
   TagX,
   Link2,
+  Share2,
   FileDown,
   FileCode2,
   Printer,
@@ -54,6 +54,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -331,6 +334,7 @@ const CheckCircleCheck = ({ className }: { className?: string }) => (
 export const MemoListPane = ({
   notebooks,
   notebook,
+  selectedTag,
   memos,
   totalMemoCount,
   hasMoreMemos,
@@ -375,6 +379,7 @@ export const MemoListPane = ({
   onOpenAssets,
   onOpenTrash,
   onBackFromTrash,
+  onClearTag,
   onOpenSettings,
   onSyncMemos,
   onCreateMemo,
@@ -404,6 +409,7 @@ export const MemoListPane = ({
   multiSelectKeyDown: boolean;
   notebooks: Notebook[];
   notebook: Notebook | null;
+  selectedTag: string | null;
   memos: MemoSummary[];
   totalMemoCount: number;
   hasMoreMemos: boolean;
@@ -448,6 +454,7 @@ export const MemoListPane = ({
   onOpenAssets: () => void;
   onOpenTrash: () => void;
   onBackFromTrash: () => void;
+  onClearTag: () => void;
   onOpenSettings: () => void;
   onSyncMemos: () => void;
   onCreateMemo: () => void;
@@ -469,7 +476,6 @@ export const MemoListPane = ({
 }) => {
   const { t } = useTranslation();
   const [memoContextMenu, setMemoContextMenu] = useState<MemoContextMenuState | null>(null);
-  const [contextMoveOpen, setContextMoveOpen] = useState(false);
   const [listDensity, setListDensity] = useState<MemoListDensity>(() => readMemoListDensityPreference());
   const [lastSelectedMemoId, setLastSelectedMemoId] = useState<string | null>(null);
   const [moveTargetNotebookId, setMoveTargetNotebookId] = useState("");
@@ -496,8 +502,8 @@ export const MemoListPane = ({
   const canToggleVisibleMemoSelection = visibleMemoIds.length > 0;
   const visibleSelectionToggleLabel = allVisibleMemosSelected ? t("memoList.selectedListNone") : t("memoList.selectedListAll");
 
-  const listTitle = view === "trash" ? t("memoList.trash") : notebook?.name ?? t("memoList.allMemos");
-  const listContextLabel = view === "trash" ? t("memoList.deletedMemos") : notebook ? t("memoList.currentNotebook") : t("memoList.allNotebooks");
+  const listTitle = view === "trash" ? t("memoList.trash") : selectedTag ? `#${selectedTag}` : notebook?.name ?? t("memoList.allMemos");
+  const listContextLabel = view === "trash" ? t("memoList.deletedMemos") : selectedTag ? t("memoList.tagFilter") : notebook ? t("memoList.currentNotebook") : t("memoList.allNotebooks");
   const visibleCount = `${memos.length}${memos.length !== totalMemoCount ? ` / ${totalMemoCount}` : ""}`;
   const listCountLabel = view === "trash"
     ? t("memoList.deletedCount", { count: visibleCount })
@@ -533,7 +539,7 @@ export const MemoListPane = ({
   const moveTargetTitle =
     view === "trash" ? t("workspace.selection.trashCannotMove") : notebooks.length === 0 ? t("workspace.selection.noMovableNotebook") : isMoving ? t("workspace.selection.moving") : t("memoList.moveToNotebook");
   const searchActive = Boolean(search.trim());
-  const hasListConstraint = searchActive || filterMode !== "all";
+  const hasListConstraint = searchActive || filterMode !== "all" || Boolean(selectedTag);
   const activeFilterLabel = filterOptions.find((option) => option.value === filterMode)?.label ?? t("options.memoFilter.all");
   const activeSortLabel = memoSortOptions.find((option) => option.value === sortMode)?.label ?? t("options.memoSort.updatedDesc");
   const syncMemosTitle = !canSyncMemos
@@ -736,7 +742,6 @@ export const MemoListPane = ({
     setDesktopActionsOpen(false);
     setDesktopFilterOpen(false);
     setDesktopSortOpen(false);
-    setContextMoveOpen(false);
     setMemoContextMenu(null);
     setMobileListActionsOpen(false);
     setMobileMoveOpen(false);
@@ -782,7 +787,6 @@ export const MemoListPane = ({
     const x = Math.min(clientX, Math.max(12, window.innerWidth - menuWidth - 12));
     const y = Math.min(clientY, Math.max(12, window.innerHeight - menuHeight - 12));
 
-    setContextMoveOpen(false);
     setMemoContextMenu({ memo, x, y });
   };
 
@@ -800,7 +804,6 @@ export const MemoListPane = ({
     }
 
     event.preventDefault();
-    setContextMoveOpen(false);
     setMemoContextMenu(null);
   };
 
@@ -813,7 +816,6 @@ export const MemoListPane = ({
       handleToggleMemo(memo.id);
     }
 
-    setContextMoveOpen(false);
     setMemoContextMenu(null);
   };
 
@@ -852,6 +854,7 @@ export const MemoListPane = ({
     onClearSelection();
     onFilterModeChange("all");
     onSearch("");
+    if (selectedTag) onClearTag();
     focusSearchInput();
   };
 
@@ -1031,13 +1034,13 @@ export const MemoListPane = ({
         {!mobileSearchActive && (
           <div className="mb-3 flex items-center justify-between gap-3 lg:hidden">
             <div className="flex min-w-0 items-center gap-2">
-              {view === "trash" && (
+              {(view === "trash" || selectedTag) && (
                 <button
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
                   type="button"
                   title={t("notebookPane.backToList")}
                   aria-label={t("notebookPane.backToList")}
-                  onClick={onBackFromTrash}
+                  onClick={view === "trash" ? onBackFromTrash : onClearTag}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -1073,14 +1076,14 @@ export const MemoListPane = ({
         )}
 
         <div className="mb-3 hidden min-w-0 lg:flex items-start gap-1">
-          {view === "trash" && (
+          {(view === "trash" || selectedTag) && (
             <Button
               className="-ml-2 mt-0.5 shrink-0"
               size="icon"
               variant="ghost"
               title={t("notebookPane.backToList")}
               aria-label={t("notebookPane.backToList")}
-              onClick={onBackFromTrash}
+              onClick={view === "trash" ? onBackFromTrash : onClearTag}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -1344,7 +1347,7 @@ export const MemoListPane = ({
               {searchActive
                 ? t("memoList.searchResults", { count: totalMemoCount })
                 : t("memoList.constrainedCount", {
-                    label: t("memoList.filterConstraint", { label: activeFilterLabel }),
+                    label: selectedTag ? `#${selectedTag}` : t("memoList.filterConstraint", { label: activeFilterLabel }),
                     count: totalMemoCount,
                   })}
             </span>
@@ -1517,40 +1520,36 @@ export const MemoListPane = ({
                 </>
               ) : (
                 <>
-                  <DropdownMenuItem
-                    className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
-                    disabled={moveNotebookOptions.length === 0}
-                    onClick={() => setContextMoveOpen((value) => !value)}
-                  >
-                    <Folder className="h-4 w-4" />
-                    <span className="min-w-0 flex-1 truncate">{t("memoList.moveToNotebook")}</span>
-                    <ChevronRight className={cn("h-4 w-4 transition-transform duration-200", contextMoveOpen && "rotate-90")} />
-                  </DropdownMenuItem>
-                  {contextMoveOpen && (
-                    <div className="max-h-52 overflow-y-auto border-y border-slate-100 bg-slate-50/60 py-1">
-                      {moveNotebookOptions.map((option: any) => (
-                        <button
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger
+                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
+                      disabled={moveNotebookOptions.length === 0}
+                    >
+                      <Folder className="h-4 w-4" />
+                      <span className="min-w-0 flex-1 truncate">{t("memoList.moveToNotebook")}</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="max-h-64 w-56 overflow-y-auto">
+                      {moveNotebookOptions.map((option) => (
+                        <DropdownMenuItem
                           key={option.id}
                           className={cn(
-                            "flex h-9 w-full items-center gap-2 px-3 text-left text-sm transition hover:bg-white",
+                            "flex h-9 items-center gap-2 px-3 text-sm",
                             option.id === memoContextMenu.memo.notebookId ? "font-semibold text-slate-950" : "text-slate-700"
                           )}
                           style={{ paddingLeft: `${12 + option.depth * 14}px` }}
-                          type="button"
                           disabled={option.id === memoContextMenu.memo.notebookId}
-                          onClick={() => {
+                          onSelect={() => {
                             const { memo } = memoContextMenu;
-                            setContextMoveOpen(false);
                             setMemoContextMenu(null);
                             onMoveMemo(memo.id, option.id);
                           }}
                         >
                           <NotebookIcon className="h-4 w-4 shrink-0" />
                           <span className="min-w-0 flex-1 truncate">{option.name}</span>
-                        </button>
+                        </DropdownMenuItem>
                       ))}
-                    </div>
-                  )}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                   <DropdownMenuSeparator className="my-1 h-px bg-slate-100" />
                   <DropdownMenuItem
                     className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
@@ -1580,6 +1579,13 @@ export const MemoListPane = ({
                   >
                     <Printer className="h-4 w-4 text-slate-500" />
                     {t("editor.exportPdf")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
+                    onClick={() => requestContextDocumentAction("share-image")}
+                  >
+                    <Share2 className="h-4 w-4 text-slate-500" />
+                    {t("editor.imageShare.action")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"

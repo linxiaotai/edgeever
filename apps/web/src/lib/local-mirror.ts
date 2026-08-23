@@ -10,6 +10,7 @@ export type LocalMemoListParams = {
   notebookId?: string | null;
   notebookIds?: string[];
   q?: string;
+  tag?: string;
   trash?: boolean;
   sort?: MemoSortMode;
   filter?: MemoFilterMode;
@@ -34,6 +35,9 @@ export const createLocalDataScope = (baseUrl: string, userId?: string | null) =>
 
 const getMeta = async (scope: string, key: string) =>
   (await localDb.syncMeta.get([scope, key]))?.value ?? null;
+
+export const hasLocalSyncCursorRewound = (localCursor: number, serverCursor?: number) =>
+  typeof serverCursor === "number" && Number.isFinite(serverCursor) && serverCursor < localCursor;
 
 export const isLocalMirrorInitialized = async (scope: string) => Boolean(await getMeta(scope, SYNC_IDENTITY_KEY));
 
@@ -141,7 +145,15 @@ const performSyncLocalMirror = async (scope: string) => {
   let currentCursor = cursor;
   let response = await api.syncChanges({ cursor: currentCursor, limit: CHANGE_PAGE_SIZE });
 
-  if (response.syncIdentity && response.syncIdentity !== storedIdentity) {
+  if (
+    hasLocalSyncCursorRewound(currentCursor, response.serverCursor) ||
+    (response.syncIdentity && response.syncIdentity !== storedIdentity)
+  ) {
+    // Restoring or clearing a server database can restart the change-log
+    // sequence without replacing the workspace row. In that case the saved
+    // browser cursor is ahead of the server and an incremental request looks
+    // empty even though the IndexedDB mirror is stale. Rebuild from the
+    // authoritative snapshot just as we do for a changed sync identity.
     changed = await bootstrapScope(scope);
     return { bootstrapped: true, changed };
   }
@@ -203,10 +215,12 @@ export const listLocalMemos = async (scope: string, params: LocalMemoListParams)
   let memos = await localDb.memos.where("scope").equals(scope).toArray();
   const notebookIds = params.notebookIds ?? (params.notebookId ? [params.notebookId] : null);
   const q = params.q?.trim().toLocaleLowerCase();
+  const tag = params.tag?.trim().toLocaleLowerCase();
 
   memos = memos.filter((memo) => {
     if (memo.isDeleted !== Boolean(params.trash)) return false;
     if (notebookIds?.length && !notebookIds.includes(memo.notebookId)) return false;
+    if (tag && !memo.tags.some((memoTag) => memoTag.toLocaleLowerCase() === tag)) return false;
     if (params.filter === "tagged" && memo.tags.length === 0) return false;
     if (params.filter === "untagged" && memo.tags.length > 0) return false;
     if (params.filter === "pinned" && !memo.isPinned) return false;
